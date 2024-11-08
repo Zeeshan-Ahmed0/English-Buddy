@@ -261,7 +261,7 @@ def main_interface():
         if st.button("Generate Questions"):
             if selected_topics:
                 selected_topics_str = ", ".join(selected_topics)
-                questions_prompt = f"Generate {mcq_count} practical, applied multiple-choice questions based on the following topics: {selected_topics_str}. These questions should be strictly for someone who has {ss.level_selected} level of English proficiency.\nShow options on a new line.\nDo not include any introductory statements like 'here are the questions.'"
+                questions_prompt = f"Generate {mcq_count} practical, applied multiple-choice questions based on the following topics: {selected_topics_str}. These questions should be strictly for someone who has {ss.level_selected} level of English proficiency.\nDo not give specify the correct answers.\nDo not include any introductory statements like 'here are the questions.'"
                 ss.text_generated = get_response(questions_prompt)
                 ss.levels.append(ss.text_generated)
                 st.rerun()
