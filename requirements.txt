@@ -1,0 +1,6 @@
+sounddevice
+SpeechRecognition
+streamlit
+soundfile
+gTTS
+groq
