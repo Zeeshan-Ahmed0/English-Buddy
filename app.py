@@ -1,10 +1,4 @@
-import sounddevice as sd
-import speech_recognition as sr
-import time
 import streamlit as st
-import soundfile as sf
-from gtts import gTTS
-import tempfile
 from groq import Groq
 
 api_keys = [
@@ -88,48 +82,6 @@ def get_feedback(prompt_content):
 if 'levels' not in ss:
     ss.levels = []
 
-
-def text_to_speech(text):
-    """Convert text to audio using gTTS and return the path to the audio file."""
-    try:
-        with st.spinner("Generating the audio please wait...."):
-            tts = gTTS(text)
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as audio_file:
-                tts.save(audio_file.name)
-                return audio_file.name
-    except Exception as e:
-        st.error(f"Error in text-to-speech conversion: {e}")
-        return None
-    
-def record_audio(start=True, sample_rate=44100, duration=120):
-    """Start or stop recording audio from the microphone."""
-    if start:
-        st.write("Recording... Please speak into the microphone.")
-        ss.audio_data = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1)
-        ss.is_recording = True
-    else:
-        sd.stop()
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as audio_file:
-            sf.write(audio_file.name, ss.audio_data, sample_rate)
-            ss.recorded_audio_paths.append(audio_file.name)
-            transcription = transcribe_audio(audio_file.name)
-            if transcription:
-                ss.transcriptions.append(transcription)
-                ss.user_answers = transcription  # Store the transcription in ss.user_answer
-
-def transcribe_audio(audio_path):
-    """Transcribe recorded audio to text using SpeechRecognition with Google Web Speech API."""
-    recognizer = sr.Recognizer()
-    with sr.AudioFile(audio_path) as source:
-        audio = recognizer.record(source)
-    try:
-        return recognizer.recognize_google(audio)
-    except sr.RequestError:
-        st.error("API unavailable. Check your internet connection.")
-    except sr.UnknownValueError:
-        st.error("Could not understand the audio.")
-    return None
-
 def back():
     ss.text_generated = None
     ss.reading_type_selected = None
@@ -159,102 +111,15 @@ def main_interface():
             ss.levels = ss.levels[:-2]
             back()
             st.rerun()
-        if ss.speaking_type_selected:
-            ss.setdefault('recorded_audio_paths', [])
-            ss.setdefault('is_recording', False)
-            ss.setdefault('transcriptions', [])
-            ss.setdefault('audio_data', None)
-                    
-        if ss.speaking_type_selected == "Speech Analysis":
-            st.write("#### Read and record the given text carefully to analyze your pronunciation and fluency:")
-            st.write(ss.text_generated)
-            if not ss.is_recording:
-                if st.button("Record"):
-                    st.write("Press the button again to stop recording.")
-                    record_audio(start=True)
-            elif ss.is_recording and st.button("Submit Answer"):
-                with st.spinner("Transcribing your audio. This may take a few seconds please wait..."):
-                    ss.continues = "true"
-                    record_audio(start=False)
-            if ss.user_answers:
-                if not ss.user_answer:
-                    if st.button("See what you said"):
-                        ss.show_answer = True
-                if ss.show_answer:
-                    st.write(ss.user_answers)
-                
-        elif ss.speaking_type_selected == "Questions and Answers":
-            st.write("#### Read and record the given text carefully to analyze your pronunciation and fluency:")
-            st.write(ss.text_generated)
-            if not ss.is_recording:
-                if st.button("Record"):
-                    st.write("Press the button again to stop recording.")
-                    record_audio(start=True)
-            elif ss.is_recording and st.button("Submit Answer"):
-                with st.spinner("Transcribing your audio. This may take a few seconds please wait..."):
-                    ss.continues = "true"
-                    record_audio(start=False)
-            if ss.user_answers:
-                if not ss.user_answer:
-                    if st.button("See what you said"):
-                        ss.show_answer = True
-                if ss.show_answer:
-                    st.write(ss.user_answers)
-            
-        elif ss.speaking_type_selected == "Debate":
-            if not ss.audio_path:
-                ss.audio_path = text_to_speech(ss.text_generated)
-            st.write("#### Listen the following audio and record your thoughts about it.")
-            if ss.audio_path:
-                st.audio(ss.audio_path)
-            if not ss.read_text_instead:
-                if st.button("Read Text"):
-                    ss.read_text_instead = True
-            if ss.read_text_instead:
-                st.write(ss.text_generated)
-            st.write("Record your thoughts on the given topic:")
-            if not ss.is_recording:
-                if st.button("Record"):
-                    st.write("Press the button again to stop recording.")
-                    record_audio(start=True)
-            elif ss.is_recording and st.button("Submit Answer"):
-                with st.spinner("Transcribing your audio. This may take a few seconds please wait..."):
-                    ss.continues = "true"
-                    record_audio(start=False)
-            if ss.user_answers:
-                if not ss.show_answer:
-                    if st.button("See what you said"):
-                        ss.show_answer = True
-                if ss.show_answer:
-                    st.write(ss.user_answers)
-            
-    # Generate audio path if not already created
-        elif ss.speaking_type_selected == "Listening Comprehension":
-            if not ss.audio_path:
-                ss.audio_path = text_to_speech(ss.text_generated)
-            # Instructions and audio output
-            if ss.audio_path:
-                st.audio(ss.audio_path)
-            
-            if ss.audio_path:
-                listening_qna_prompt = f"I want you to give me 10 {ss.level_selected} level MCQs to test user's listening comprehension based on the following (transcribed) text: {ss.text_generated} and don't specify the answers."
-                ss.listening_questions = get_response(listening_qna_prompt)
-                st.write(ss.listening_questions)
-                ss.user_answers = st.text_area(
-                    "Your Answers to the Questions",
-                    height=200,
-                    placeholder="Please attempt the answers like:\n1. A\n2. C\n3. B...")
-                ss.continues = "true"
-
 
         elif ss.writing_type_selected:
             st.write(ss.text_generated)
-            ss.user_answers = st.text_area("Your Answers to the Questions", height=100, placeholder="Start Writing Here:")
+            ss.user_answers = st.text_area("Your Answers to the Questions", height=150, placeholder="Start Writing Here:")
             ss.continues = "true"
             
         else:
             st.write(ss.text_generated)
-            ss.user_answers = st.text_area("Your Answers to the Questions", height=100, placeholder="Please attempt the answers like:\n1. A\n2. C\n3. B.....")
+            ss.user_answers = st.text_area("Your Answers to the Questions", height=150, placeholder="Please attempt the answers like:\n1. A\n2. C\n3. B.....")
             ss.continues = "true"
             
         if ss.continues == "true":
@@ -269,10 +134,6 @@ def main_interface():
                         "qna_writing_feedback" : f"Act as an English instructor and evaluate the user's writing skill strictly at a {ss.level_selected} level based on the following questions:\n\nQuestions Provided:\n{ss.text_generated}\n\nuser's Answers:\n{ss.user_answers}\n\nFocus on the {ss.level_selected} level of writing skill. Provide brief and concise feedback on vocabulary, clarity, and structure, grammar, punctuation and suggest areas for improvement in a {ss.feedback_tone} tone and rate the given answers out of 10 strictly according to a person with {ss.level_selected} level proficiency in English writing.\nIf the answers are none or irrelevant, say something like: 'Kindly attempt the answers correctly.' If some answers are missing, specify which ones are missing and request that they be answered. Additionally don't add any intro",
                         "summary_feedback" : f"Act as an English instructor and analyze the user's summary response at the {ss.level_selected} level, based on the provided text:\n\nText Provided:\n{ss.text_generated}\n\nuser's Summary:\n{ss.user_answers}\n\nEvaluate briefly the usage of vocabulary, clarity, structure, grammar, punctuation, and overall summary writing, and provide brief feedback with suggestions for improvement in a {ss.feedback_tone} tone and rate the given summary out of 10 strictly according to a person with {ss.level_selected} level proficiency in summary writing.\nIf the response is none or irrelevant, say: 'Kindly attempt the summary correctly.' If some parts are missing, specify which ones are missing and request that they be completed. Additionally don't add any intro",
                         "grammar_feedback" : f"Act as an English instructor to evaluate the user's grammar skills based on the following MCQs:\n{ss.text_generated}\n\nUser's Answers:\n{ss.user_answers}\n\nFirst, indicate the number of correct answers. Then, provide {ss.level_selected} feedback on any incorrect answers, explaining the correct grammar concepts in a {ss.feedback_tone} tone.\nIf the answers are none, irrelevant, or incomplete, say: 'Please ensure all answers are attempted thoughtfully.' If some answers are missing, specify which ones are missing and request that they be answered.' Additionally don't add any intro",
-                        "speech_analysis_feedback" : f"Provide a concise feedback at the {ss.level_selected} level strictly in a {ss.feedback_tone} tone and according to a person with {ss.level_selected} level proficiency in Speaking and rate the given response out of 10.\nThe text used to assess speaking ability was:\n{ss.text_generated}\nUser's recorded speech (transcribed):\n{ss.user_answers}\n\nEvaluate intonation, fluency, and pronunciation. Avoid any introductory statements. If the response is none or irrelevant, say: 'Please ensure all answers are attempted thoughtfully.' If any parts are missing, specify which ones and request they be completed.",
-                        "qna_speaking_feedback" : f"Provide a concise feedback at the {ss.level_selected} level in a {ss.feedback_tone} tone, and rate the response out of 10 based strictly on {ss.level_selected} level proficiency in speaking.\nThe questions asked were:\n{ss.text_generated}\nUser's spoken response (transcribed):\n{ss.user_answers}\n\nAssess the response for clarity, relevance, intonation, fluency, and pronunciation. Avoid introductory statements. If the response is none or irrelevant, say: 'Please ensure all answers are attempted thoughtfully.' If any parts or questions are missing, specify which ones and request they be completed.",
-                        "debate_feedback" : f"Provide a brief feedback strictly at the {ss.level_selected} level and strictly in a {ss.feedback_tone} tone, and rate the user's response out of 10.\nThe topic given was:\n{ss.text_generated}\nUser's opinion (transcribed):\n{ss.user_answers}\n\nEvaluate the argument's clarity, coherence, fluency, and pronunciation. Avoid introductory statements. If the response is none or irrelevant, say: 'Please provide a well-thought-out response.' If any points are missing, specify which ones and request they be addressed.",
-                        "listening_feedback" : f"Provide brief feedback at the {ss.level_selected} level listening comprehension strictly in a {ss.feedback_tone} tone.\nThe audio content provided was:\n{ss.text_generated}.\nThe questions given to the user were {ss.listening_questions} based on the audio.\nUser's answers:\n{ss.user_answers}\n\nSpecify how many answers are correct and then provide feedback on the incorrect answers. Avoid introductory statements. If the response is none or irrelevant, say: 'Kindly attempt all the answers in a correct method.' If some answers are missing, specify which ones and request they be addressed.",
                         "test_feedback" : f"Act as an English teacher and evaluate the user's answer paper strictly in a {ss.feedback_tone} for a person with {ss.level_selected} proficiency in English, rating it out of 70 marks.\nThe question paper is:\n{ss.text_generated}\nUser's answer paper:\n{ss.user_answers}\n\nAssign marks to each section and provide concise feedback on each one in a {ss.feedback_tone} tone at the {ss.level_selected} level. Include an overall feedback summary at the end. Avoid introductory statements.\nIf the response is none or irrelevant, give 0 marks and say: 'Kindly attempt all answers using the correct method.' If any answers are missing, specify which ones and request they be addressed."
                     }
                     feedback_prompt = ""
@@ -286,19 +147,10 @@ def main_interface():
                         feedback_prompt = feedbacks["summary_feedback"]
                     elif ss.area_selected and ss.area_selected == "Grammar":
                         feedback_prompt = feedbacks["grammar_feedback"]
-                    elif ss.speaking_type_selected == "Speech Analysis":
-                        feedback_prompt = feedbacks["speech_analysis_feedback"]
-                    elif ss.speaking_type_selected == "Questions and Answers":
-                        feedback_prompt = feedbacks["qna_speaking_feedback"]
-                    elif ss.speaking_type_selected == "Debate":
-                        feedback_prompt = feedbacks["debate_feedback"]                        
-                    elif ss.speaking_type_selected == "Listening Comprehension":
-                        feedback_prompt = feedbacks["listening_feedback"]
                     elif ss.area_selected == "Take a Test":
                         feedback_prompt = feedbacks["test_feedback"]
                            
                     ss.feedback_generated = get_feedback(feedback_prompt)
-                    time.sleep(2)
                     with st.spinner("Generating Feedback....."):
                         if ss.feedback_generated:
                             st.markdown("### Feedback:")
@@ -326,7 +178,7 @@ def main_interface():
         st.markdown("### Choose Your Focus Area:")
         area = st.radio(
             "Choose an Area:", 
-            options=["Grammar", "Reading Comprehension", "Writing", "Listening and Speaking", "Take a Test"], 
+            options=["Grammar", "Reading Comprehension", "Writing", "Take a Test"], 
             index=0
         )
         if st.button("Confirm Area"):
@@ -403,7 +255,7 @@ def main_interface():
         # Step 2: Radio button selection for number of MCQs
         mcq_count = st.radio(
             "Please select the number of MCQs you want:",
-            ["5", "10", "15"]
+            ["5", "10", "15"], horizontal=True
         )
         # Step 2: Provide MCQs based on selected topics
         if st.button("Generate Questions"):
@@ -416,34 +268,6 @@ def main_interface():
             elif not selected_topics:
                 st.write("Please select atleast one Grammar topic to continue.")
 
-    elif ss.levels[-1] == "Listening and Speaking":
-        if st.button("⬅️ Back"):
-            ss.speaking_type_selected = None
-            ss.levels.pop()
-            st.rerun()
-        st.markdown("#### Select Your Task:")
-        speaking_type = st.radio("Options:", ["Speech Analysis","Questions and Answers","Debate", "Listening Comprehension"])
-        if st.button("Proceed"):
-            ss.speaking_type_selected = speaking_type
-            
-        speech_analysis_prompt = (f"Provide a moderate length informative passage strictly at the {ss.level_selected} level for the user to read and record the text. Make sure the passage aligns with the {ss.level_selected} level, without including any introductory text—just the passage itself.")
-        questions_and_answers_prompt = (f"Provide 3 questions strictly at the {ss.level_selected} level for the user to answer in audio. Do not include any intro. Ensure the questions are designed to improve the user's speaking ability and are appropriately challenging for the {ss.level_selected} proficiency level.")
-        debate_prompt = (f"Provide a brief, controversial passage suited for a {ss.level_selected} level, intended for the user to share their opinion. The passage should be tailored to enhance listening and speaking skills, with complexity appropriate for {ss.level_selected}. No introduction is needed.")
-        listening_comprehension_prompt = (f"Provide a concise passage suitable for a {ss.level_selected} level, designed for listening comprehension practice. Begin directly with the passage, without any introductory or outtro text.")
-        if ss.speaking_type_selected:
-            if ss.speaking_type_selected == "Speech Analysis":
-                ss.text_generated = get_response(speech_analysis_prompt)
-            elif ss.speaking_type_selected == "Questions and Answers":
-                ss.text_generated = get_response(questions_and_answers_prompt)
-            elif ss.speaking_type_selected == "Debate":
-                ss.audio_path = None
-                ss.text_generated = get_response(debate_prompt)
-            elif ss.speaking_type_selected == "Listening Comprehension":
-                ss.audio_path = None
-                ss.text_generated = get_response(listening_comprehension_prompt)
-            ss.levels.append(ss.text_generated)
-            st.rerun()
-
     elif ss.levels[-1] == "Take a Test":
         if st.button("⬅️ Back", key="back", help="Go back to the previous selection"):
             ss.area_selected = None
@@ -452,9 +276,9 @@ def main_interface():
         
         st.markdown("## Total marks are 70:\n1. Writing: 30 Marks\n2. Reading Comprehension: 30 Marks\n3. Grammar: 20 Marks")
         st.markdown("#### Kindly select the topic of writing:")
-        test_writing_type = st.radio("Options:", ["Essay", "Story", "Dialogue", "Email"])
+        test_writing_type = st.radio("Options:", ["Essay", "Story", "Dialogue", "Email"], horizontal=True)
         st.markdown("#### Kindly select the topic of Reading Comprehension:")
-        test_reading_type = st.radio("Options:", ["Story", "Dialogue", "Essay", "News Article"])
+        test_reading_type = st.radio("Options:", ["Story", "Dialogue", "Essay", "News Article"], horizontal=True)
         st.markdown("### Select Grammar Topics:")
         grammar_topics = {
             "Tenses": st.checkbox("Tenses", value=True),
