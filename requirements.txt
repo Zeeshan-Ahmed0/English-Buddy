@@ -1,2 +1,5 @@
 streamlit
+audio-recorder-streamlit
+SpeechRecognition
+gTTS
 groq
